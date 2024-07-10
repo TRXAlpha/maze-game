@@ -1,24 +1,26 @@
-# game.py
 import pygame
 
 class Game:
-    def __init__(self, goal_cell, tile_size):
+    def __init__(self, goal_cell, tile):
         self.goal_cell = goal_cell
-        self.tile_size = tile_size
+        self.tile = tile
 
     def add_goal_point(self, screen):
-        img = pygame.image.load('gate.jpeg')
-        img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
-        screen.blit(img, (self.goal_cell.x * self.tile_size, self.goal_cell.y * self.tile_size))
+        pygame.draw.rect(screen, (0, 255, 0), self.goal_cell.rect)
 
     def is_game_over(self, players):
-        goal_cell_abs_x = self.goal_cell.x * self.tile_size
-        goal_cell_abs_y = self.goal_cell.y * self.tile_size
         for player in players:
-            if player.x >= goal_cell_abs_x and player.y >= goal_cell_abs_y:
+            if self.goal_cell.rect.colliderect(player.rect):
                 return True
         return False
 
-    def message(self):
+    def message(self, screen):
         font = pygame.font.SysFont("impact", 50)
-        return font.render("You Win!", True, pygame.Color("cyan"))
+        text_surface = font.render("Game Over!", True, (255, 0, 0))
+        # Assuming you want to display the message at the center of the screen
+        screen_rect = screen.get_rect()
+        text_rect = text_surface.get_rect(center=screen_rect.center)
+        screen.blit(text_surface, text_rect)
+        pygame.display.flip()
+
+# Note: Ensure that the pygame.display.flip() or pygame.display.update() is called after drawing everything on the screen, including the game over message, to actually update the display.
