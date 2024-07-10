@@ -136,7 +136,7 @@ class Main:
         
         pygame.display.flip()
 
-    def main(self, frame_size, tile):
+    def main(self, frame_size, tile, bot_difficulty=None):
         cols, rows = frame_size[0] // tile, frame_size[-1] // tile
         maze = Maze(cols, rows)
         maze.generate_maze()
@@ -144,7 +144,11 @@ class Main:
         player1 = Player(tile // 3, tile // 3)
         player2 = Player(tile // 3, tile // 3)
         player1.controls = {'left': pygame.K_a, 'right': pygame.K_d, 'up': pygame.K_w, 'down': pygame.K_s}
-        player2.controls = {'left': pygame.K_j, 'right': pygame.K_l, 'up': pygame.K_i, 'down': pygame.K_k}
+        if bot_difficulty:
+            player2.is_bot = True
+            player2.bot_difficulty = bot_difficulty
+        else:
+            player2.controls = {'left': pygame.K_j, 'right': pygame.K_l, 'up': pygame.K_i, 'down': pygame.K_k}
         players = [player1, player2]
         clock = Clock()
 
@@ -159,29 +163,30 @@ class Main:
                     sys.exit()
 
                 for player in players:
-                    if event.type == pygame.KEYDOWN:
-                        if not self.game_over:
-                            if event.key == player.controls['left']:
-                                player.left_pressed = True
-                            if event.key == player.controls['right']:
-                                player.right_pressed = True
-                            if event.key == player.controls['up']:
-                                player.up_pressed = True
-                            if event.key == player.controls['down']:
-                                player.down_pressed = True
-                            player.check_move(tile, maze.grid_cells, maze.thickness)
-        
-                    if event.type == pygame.KEYUP:
-                        if not self.game_over:
-                            if event.key == player.controls['left']:
-                                player.left_pressed = False
-                            if event.key == player.controls['right']:
-                                player.right_pressed = False
-                            if event.key == player.controls['up']:
-                                player.up_pressed = False
-                            if event.key == player.controls['down']:
-                                player.down_pressed = False
-                            player.check_move(tile, maze.grid_cells, maze.thickness)
+                    if not player.is_bot:
+                        if event.type == pygame.KEYDOWN:
+                            if not self.game_over:
+                                if event.key == player.controls['left']:
+                                    player.left_pressed = True
+                                if event.key == player.controls['right']:
+                                    player.right_pressed = True
+                                if event.key == player.controls['up']:
+                                    player.up_pressed = True
+                                if event.key == player.controls['down']:
+                                    player.down_pressed = True
+                                player.check_move(tile, maze.grid_cells, maze.thickness)
+                
+                        if event.type == pygame.KEYUP:
+                            if not self.game_over:
+                                if event.key == player.controls['left']:
+                                    player.left_pressed = False
+                                if event.key == player.controls['right']:
+                                    player.right_pressed = False
+                                if event.key == player.controls['up']:
+                                    player.up_pressed = False
+                                if event.key == player.controls['down']:
+                                    player.down_pressed = False
+                                player.check_move(tile, maze.grid_cells, maze.thickness)
 
             if game.is_game_over(players):
                 self.game_over = True
@@ -246,7 +251,7 @@ if __name__ == "__main__":
     if action == "1v1 Local":
         # Show options for vs Person or vs Bot
         font = pygame.font.SysFont("impact", 50)
-        options = ["vs Person", "vs Bot"]
+        options = ["vs Person", "Easy Bot", "Medium Bot", "Hard Bot"]
         running = True
         while running:
             screen.fill((0, 0, 0))
@@ -271,7 +276,20 @@ if __name__ == "__main__":
                         game = Main(screen)
                         game.main(window_size, tile_size)
                     elif 350 < mouse_pos[1] < 450:
-                        print("Bot option selected (not implemented).")
+                        show_instructions(screen)
+                        countdown(screen)
+                        game = Main(screen)
+                        game.main(window_size, tile_size, bot_difficulty="easy")
+                    elif 450 < mouse_pos[1] < 550:
+                        show_instructions(screen)
+                        countdown(screen)
+                        game = Main(screen)
+                        game.main(window_size, tile_size, bot_difficulty="medium")
+                    elif 550 < mouse_pos[1] < 650:
+                        show_instructions(screen)
+                        countdown(screen)
+                        game = Main(screen)
+                        game.main(window_size, tile_size, bot_difficulty="hard")
 
     elif action == "Multiplayer":
         screen.fill((0, 0, 0))
