@@ -1,8 +1,3 @@
-# Import necessary modules and classes
-from maze import Maze
-from player import Player
-from game import Game
-from clock import Clock
 import pygame
 import sys
 import random
@@ -11,7 +6,6 @@ import random
 pygame.init()
 pygame.font.init()
 
-# Define the Star class for the background effect
 class Star:
     def __init__(self, screen_width, screen_height):
         self.x = random.randint(0, screen_width)
@@ -33,7 +27,6 @@ class Star:
         pygame.draw.circle(star_surface, faded_color, (self.size // 2, self.size // 2), self.size)
         screen.blit(star_surface, (self.x, self.y))
 
-# Define the MainMenu class for the game menu
 class MainMenu:
     def __init__(self, screen):
         self.screen = screen
@@ -113,7 +106,6 @@ class MainMenu:
                     return action
             self.draw()
 
-# Define the Main class for the game logic
 class Main:
     def __init__(self, screen):
         self.screen = screen
@@ -122,10 +114,10 @@ class Main:
         self.running = True
         self.game_over = False
         self.FPS = pygame.time.Clock()
+        self.clock = Clock()
+        self.goal_image = pygame.image.load('gate.jpeg')
 
     def instructions(self, vs_bot=False):
-        instructions1 = self.font.render('Player 1: Use WASD Keys to Move', True, self.message_color)
-        self.screen.blit(instructions1, (810, 100))
         if not vs_bot:
             instructions2 = self.font.render('Player 2: Use IJKL Keys to Move', True, self.message_color)
             self.screen.blit(instructions2, (810, 150))
@@ -153,8 +145,9 @@ class Main:
 
         self.instructions(vs_bot=players[1].is_bot)
 
-        game.message(self.screen, (810, 300))
-        clock.display_clock(self.screen)
+        game.message(self.screen, (810, 300), "Game Message")
+        clock.update_timer()
+        self.screen.blit(clock.display_timer(), (810, 200))
 
         pygame.display.update()
 
@@ -163,117 +156,190 @@ class Main:
         maze.generate_maze()
         start = maze.grid_cells[0][0]
         goal = maze.grid_cells[-1][-1]
-        game = Game(goal, tile)
+        game = Game(goal, tile, goal_image=self.goal_image)
         players = [
-            Player(tile, tile),
-            Player(tile, tile, is_bot=vs_bot, difficulty=bot_difficulty) if vs_bot else Player(tile, tile)
+            Player(tile // 2, tile // 2),
+            Player(tile // 2, tile // 2, is_bot=vs_bot, difficulty=bot_difficulty) if vs_bot else Player(tile // 2, tile // 2)
         ]
-        clock = Clock(pygame.time.get_ticks())
 
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    for player in players:
-                        if event.key == pygame.K_w and not player.is_bot:
-                            player.up_pressed = True
-                        if event.key == pygame.K_a and not player.is_bot:
-                            player.left_pressed = True
-                        if event.key == pygame.K_s and not player.is_bot:
-                            player.down_pressed = True
-                        if event.key == pygame.K_d and not player.is_bot:
-                            player.right_pressed = True
-                        if event.key == pygame.K_i and not vs_bot:
-                            player.up_pressed = True
-                        if event.key == pygame.K_j and not vs_bot:
-                            player.left_pressed = True
-                        if event.key == pygame.K_k and not vs_bot:
-                            player.down_pressed = True
-                        if event.key == pygame.K_l and not vs_bot:
-                            player.right_pressed = True
-                if event.type == pygame.KEYUP:
-                    for player in players:
-                        if event.key == pygame.K_w and not player.is_bot:
-                            player.up_pressed = False
-                        if event.key == pygame.K_a and not player.is_bot:
-                            player.left_pressed = False
-                        if event.key == pygame.K_s and not player.is_bot:
-                            player.down_pressed = False
-                        if event.key == pygame.K_d and not player.is_bot:
-                            player.right_pressed = False
-                        if event.key == pygame.K_i and not vs_bot:
-                            player.up_pressed = False
-                        if event.key == pygame.K_j and not vs_bot:
-                            player.left_pressed = False
-                        if event.key == pygame.K_k and not vs_bot:
-                            player.down_pressed = False
-                        if event.key == pygame.K_l and not vs_bot:
-                            player.right_pressed = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_r:
+                        self.game_over = False
+                        self.main(dimension, tile, vs_bot, bot_difficulty)
+                    if not vs_bot:
+                        if event.key == pygame.K_w:
+                            players[0].move(0, -1, maze)
+                        elif event.key == pygame.K_s:
+                            players[0].move(0, 1, maze)
+                        elif event.key == pygame.K_a:
+                            players[0].move(-1, 0, maze)
+                        elif event.key == pygame.K_d:
+                            players[0].move(1, 0, maze)
+                        elif event.key == pygame.K_i:
+                            players[1].move(0, -1, maze)
+                        elif event.key == pygame.K_k:
+                            players[1].move(0, 1, maze)
+                        elif event.key == pygame.K_j:
+                            players[1].move(-1, 0, maze)
+                        elif event.key == pygame.K_l:
+                            players[1].move(1, 0, maze)
 
-            self._draw(maze, tile, players, game, clock)
+            self._draw(maze, tile, players, game, self.clock)
+            self.FPS.tick(60)
 
-            if game.is_game_over(players):
-                self.game_over = True
+class Maze:
+    def __init__(self, cols, rows, tile_size):
+        self.cols = cols
+        self.rows = rows
+        self.tile_size = tile_size
+        self.grid_cells = [[Cell(x, y, tile_size) for y in range(rows)] for x in range(cols)]
+        self.stack = []
 
-            self.FPS.tick(30)
+    def generate_maze(self):
+        current_cell = self.grid_cells[0][0]
+        self.stack.append(current_cell)
+        current_cell.visited = True
 
-def show_instructions(screen, vs_bot=False):
-    screen.fill((0, 0, 0))
-    font = pygame.font.SysFont("impact", 50)
-    lines = [
-        "Instructions:",
-        "Player 1: Use WASD to move",
-        "Player 2: Use IJKL to move" if not vs_bot else "The bot will play against you",
-        "Reach the green goal point first to win!"
-    ]
+        while self.stack:
+            next_cell = current_cell.check_neighbors(self.grid_cells, self.cols, self.rows)
+            if next_cell:
+                next_cell.visited = True
+                self.stack.append(current_cell)
+                current_cell.remove_walls(next_cell)
+                current_cell = next_cell
+            elif self.stack:
+                current_cell = self.stack.pop()
 
-    y_offset = 100
-    for line in lines:
-        text = font.render(line, True, (255, 255, 255))
-        rect = text.get_rect(center=(screen.get_width() // 2, y_offset))
-        screen.blit(text, rect)
-        y_offset += 60
+class Cell:
+    def __init__(self, x, y, size):
+        self.x = x
+        self.y = y
+        self.size = size
+        self.walls = [True, True, True, True]
+        self.visited = False
 
-    pygame.display.flip()
-    pygame.time.wait(3000)
+    def draw(self, screen, tile_size):
+        x = self.x * tile_size
+        y = self.y * tile_size
+        if self.walls[0]:
+            pygame.draw.line(screen, (255, 255, 255), (x, y), (x + tile_size, y))
+        if self.walls[1]:
+            pygame.draw.line(screen, (255, 255, 255), (x + tile_size, y), (x + tile_size, y + tile_size))
+        if self.walls[2]:
+            pygame.draw.line(screen, (255, 255, 255), (x + tile_size, y + tile_size), (x, y + tile_size))
+        if self.walls[3]:
+            pygame.draw.line(screen, (255, 255, 255), (x, y + tile_size), (x, y))
+        if self.visited:
+            pygame.draw.rect(screen, (0, 0, 0), (x, y, tile_size, tile_size))
 
-def countdown(screen):
-    font = pygame.font.SysFont("impact", 100)
-    for i in range(3, 0, -1):
-        screen.fill((0, 0, 0))
-        MainMenu(screen).draw_stars()
-        text = font.render(str(i), True, (255, 255, 255))
-        rect = text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
-        screen.blit(text, rect)
-        pygame.display.flip()
-        pygame.time.wait(1000)
+    def check_neighbors(self, grid_cells, cols, rows):
+        neighbors = []
+        top = grid_cells[self.x][self.y - 1] if self.y > 0 else None
+        right = grid_cells[self.x + 1][self.y] if self.x < cols - 1 else None
+        bottom = grid_cells[self.x][self.y + 1] if self.y < rows - 1 else None
+        left = grid_cells[self.x - 1][self.y] if self.x > 0 else None
+
+        if top and not top.visited:
+            neighbors.append(top)
+        if right and not right.visited:
+            neighbors.append(right)
+        if bottom and not bottom.visited:
+            neighbors.append(bottom)
+        if left and not left.visited:
+            neighbors.append(left)
+
+        if neighbors:
+            return random.choice(neighbors)
+        return None
+
+    def remove_walls(self, next_cell):
+        x = self.x - next_cell.x
+        y = self.y - next_cell.y
+        if x == 1:
+            self.walls[3] = False
+            next_cell.walls[1] = False
+        elif x == -1:
+            self.walls[1] = False
+            next_cell.walls[3] = False
+        if y == 1:
+            self.walls[0] = False
+            next_cell.walls[2] = False
+        elif y == -1:
+            self.walls[2] = False
+            next_cell.walls[0] = False
+
+class Player:
+    def __init__(self, width, height, is_bot=False, difficulty='easy'):
+        self.width = width
+        self.height = height
+        self.is_bot = is_bot
+        self.difficulty = difficulty
+        self.rect = pygame.Rect(0, 0, width, height)
+        self.color = (255, 0, 0) if not is_bot else (0, 255, 0)
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, self.color, self.rect)
+
+    def move(self, dx, dy, maze):
+        x = self.rect.x // maze.tile_size + dx
+        y = self.rect.y // maze.tile_size + dy
+        if 0 <= x < maze.cols and 0 <= y < maze.rows:
+            self.rect.x += dx * maze.tile_size
+            self.rect.y += dy * maze.tile_size
+
+class Game:
+    def __init__(self, goal, tile, goal_image):
+        self.goal = goal
+        self.tile = tile
+        self.goal_image = pygame.transform.scale(goal_image, (tile, tile))
+
+    def add_goal_point(self, screen):
+        x = self.goal.x * self.tile
+        y = self.goal.y * self.tile
+        screen.blit(self.goal_image, (x, y))
+
+    def message(self, screen, position, text):
+        font = pygame.font.SysFont("impact", 30)
+        message_surface = font.render(text, True, pygame.Color("cyan"))
+        screen.blit(message_surface, position)
+
+class Clock:
+    def __init__(self):
+        self.start_ticks = pygame.time.get_ticks()
+        self.font = pygame.font.SysFont("impact", 30)
+
+    def update_timer(self):
+        self.elapsed_seconds = (pygame.time.get_ticks() - self.start_ticks) / 1000
+
+    def display_timer(self):
+        minutes = int(self.elapsed_seconds // 60)
+        seconds = int(self.elapsed_seconds % 60)
+        time_string = f"{minutes:02}:{seconds:02}"
+        return self.font.render(time_string, True, pygame.Color("cyan"))
 
 def main():
+    pygame.init()
     screen = pygame.display.set_mode((1000, 800))
     pygame.display.set_caption("Maze Duel")
-    main_menu = MainMenu(screen)
-    game = Main(screen)
 
-    while True:
-        action = main_menu.main_loop()
-        if action == "1v1 Local":
-            show_instructions(screen)
-            countdown(screen)
-            game.main((800, 800), 40)
-        elif action == "vs Bot Easy":
-            show_instructions(screen, vs_bot=True)
-            countdown(screen)
-            game.main((800, 800), 40, vs_bot=True, bot_difficulty='easy')
-        elif action == "vs Bot Medium":
-            show_instructions(screen, vs_bot=True)
-            countdown(screen)
-            game.main((800, 800), 40, vs_bot=True, bot_difficulty='medium')
-        elif action == "vs Bot Hard":
-            show_instructions(screen, vs_bot=True)
-            countdown(screen)
-            game.main((800, 800), 40, vs_bot=True, bot_difficulty='hard')
+    menu = MainMenu(screen)
+    game_mode = menu.main_loop()
+
+    main_game = Main(screen)
+
+    if game_mode == "1v1 Local":
+        main_game.main((800, 800), 40, vs_bot=False)
+    elif game_mode == "vs Bot Easy":
+        main_game.main((800, 800), 40, vs_bot=True, bot_difficulty='easy')
+    elif game_mode == "vs Bot Medium":
+        main_game.main((800, 800), 40, vs_bot=True, bot_difficulty='medium')
+    elif game_mode == "vs Bot Hard":
+        main_game.main((800, 800), 40, vs_bot=True, bot_difficulty='hard')
 
 if __name__ == "__main__":
     main()
