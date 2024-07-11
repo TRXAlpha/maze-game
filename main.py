@@ -1,5 +1,3 @@
-# main.py
-
 import pygame
 import sys
 import random
@@ -8,7 +6,6 @@ from player import Player
 from game import Game
 from clock import Clock
 
-# Initialize pygame and fonts
 pygame.init()
 pygame.font.init()
 
@@ -46,7 +43,8 @@ class MainMenu:
         self.bot_buttons = [
             {"text": "Easy", "pos": (0, 300)},
             {"text": "Medium", "pos": (0, 400)},
-            {"text": "Hard", "pos": (0, 500)}
+            {"text": "Hard", "pos": (0, 500)},
+            {"text": "Back", "pos": (0, 600)}
         ]
         self.running = True
         self.stars = [Star(screen.get_width(), screen.get_height()) for _ in range(100)]
@@ -84,20 +82,22 @@ class MainMenu:
             mouse_pos = pygame.mouse.get_pos()
             buttons = self.bot_buttons if self.show_bot_difficulty else self.buttons
             for button in buttons:
-                if button["rect"].collidepoint(mouse_pos):
-                    text = button["text"]
-                    if text == "1v1 Local":
-                        self.running = False
+                if "rect" in button and button["rect"].collidepoint(mouse_pos):
+                    if button["text"] == "1v1 Local":
                         return "1v1"
-                    elif text == "vs Bot":
+                    elif button["text"] == "vs Bot":
                         self.show_bot_difficulty = True
-                        return None
-                    elif text == "Exit the Game":
+                    elif button["text"] == "Easy":
+                        return "easy"
+                    elif button["text"] == "Medium":
+                        return "medium"
+                    elif button["text"] == "Hard":
+                        return "hard"
+                    elif button["text"] == "Back":
+                        self.show_bot_difficulty = False
+                    elif button["text"] == "Exit the Game":
                         pygame.quit()
                         sys.exit()
-                    elif text in ["Easy", "Medium", "Hard"]:
-                        self.running = False
-                        return text.lower()
         return None
 
 class MainGame:
@@ -110,61 +110,60 @@ class MainGame:
         pygame.display.set_caption("Maze Game")
         clock = pygame.time.Clock()
 
-        maze = Maze(size[0] // tile, size[1] // tile, tile)
+        maze_top_offset = 50  # Space at the top for the clock
+        maze_height = size[1] - maze_top_offset
+        maze = Maze(size[0] // tile, maze_height // tile, tile)  # Adjust maze size to account for clock display
         maze.generate_maze()
         
-        goal = maze.get_random_goal_cell()
+        goal = maze.grid[maze.cols - 1][maze.rows - 1]
         game = Game(goal, tile, goal_image=self.goal_image)
 
         if vs_bot:
-            players = [Player(tile, tile), Player(tile, tile, is_bot=True, difficulty=bot_difficulty)]
+            players = [Player(tile // 2, tile // 2), Player(tile // 2, tile // 2, is_bot=True, difficulty=bot_difficulty)]
         else:
-            players = [Player(tile, tile), Player(tile, tile)]
+            players = [Player(tile // 2, tile // 2), Player(tile // 2, tile // 2)]
 
         players[0].rect.topleft = maze.get_start_position()
         players[1].rect.topleft = maze.get_start_position()
 
-        font = pygame.font.SysFont("impact", 30)
-        back_button = font.render("Back", True, (255, 255, 255))
-        back_rect = back_button.get_rect(topleft=(10, size[1] - 40))
+        game_clock = Clock(size[0], size[1])
 
         running = True
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if back_rect.collidepoint(event.pos):
-                        return  # Return to main menu
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_w]:
-                players[0].rect.y -= players[0].speed
+                players[0].move(0, -players[0].speed, maze.grid, tile)
             if keys[pygame.K_s]:
-                players[0].rect.y += players[0].speed
+                players[0].move(0, players[0].speed, maze.grid, tile)
             if keys[pygame.K_a]:
-                players[0].rect.x -= players[0].speed
+                players[0].move(-players[0].speed, 0, maze.grid, tile)
             if keys[pygame.K_d]:
-                players[0].rect.x += players[0].speed
+                players[0].move(players[0].speed, 0, maze.grid, tile)
 
             if not vs_bot:
                 if keys[pygame.K_UP]:
-                    players[1].rect.y -= players[1].speed
+                    players[1].move(0, -players[1].speed, maze.grid, tile)
                 if keys[pygame.K_DOWN]:
-                    players[1].rect.y += players[1].speed
+                    players[1].move(0, players[1].speed, maze.grid, tile)
                 if keys[pygame.K_LEFT]:
-                    players[1].rect.x -= players[1].speed
+                    players[1].move(-players[1].speed, 0, maze.grid, tile)
                 if keys[pygame.K_RIGHT]:
-                    players[1].rect.x += players[1].speed
+                    players[1].move(players[1].speed, 0, maze.grid, tile)
 
             screen.fill((0, 0, 0))
+            game_clock.update()
+            game_clock.draw(screen)  # Draw the clock first
             maze.draw(screen)
             game.draw(screen)
             for player in players:
                 player.draw(screen)
 
             if vs_bot:
-                players[1].bot_move(goal, maze.grid_cells, tile)
+                players[1].bot_move(goal, maze.grid, tile)
 
             if players[0].rect.colliderect(goal.rect):
                 print("Player 1 wins!")
@@ -173,14 +172,13 @@ class MainGame:
                 print("Player 2 wins!")
                 running = False
 
-            screen.blit(back_button, back_rect)
             pygame.display.flip()
             clock.tick(60)
 
         pygame.quit()
 
 def main():
-    screen = pygame.display.set_mode((800, 800))
+    screen = pygame.display.set_mode((800, 850))  # Adjust the screen size to leave space for the clock
     menu = MainMenu(screen)
     while menu.running:
         for event in pygame.event.get():
@@ -192,13 +190,14 @@ def main():
                 if result:
                     main_game = MainGame()
                     if result == "1v1":
-                        main_game.run_game((800, 800), 40, vs_bot=False)
+                        main_game.run_game((800, 850), 40, vs_bot=False)  # Adjust the game size accordingly
                     else:
-                        main_game.run_game((800, 800), 40, vs_bot=True, bot_difficulty=result)
+                        main_game.run_game((800, 850), 40, vs_bot=True, bot_difficulty=result)
                     menu.running = True
 
         menu.draw()
         pygame.display.flip()
+
 
 if __name__ == "__main__":
     main()

@@ -11,19 +11,3 @@ class Game:
 
     def draw(self, screen):
         screen.blit(self.goal_image, self.goal.rect.topleft)
-
-   
-    def add_goal_point(self, screen):
-        pygame.draw.rect(screen, (0, 255, 0), self.goal_cell.rect)
-
-    def is_game_over(self, players):
-        for player in players:
-            if self.goal_cell.rect.colliderect(player.rect):
-                return True
-        return False
-
-    def message(self, screen, position, text):
-        font = pygame.font.SysFont("impact", 30)
-        message_surface = font.render(text, True, pygame.Color("cyan"))
-        screen.blit(message_surface, position)
-

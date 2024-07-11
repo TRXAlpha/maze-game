@@ -1,64 +1,70 @@
+# player.py
+
 import pygame
 import random
-
-
 class Player:
     def __init__(self, width, height, is_bot=False, difficulty='easy'):
         self.rect = pygame.Rect(0, 0, width, height)
-        self.color = (0, 0, 255) if not is_bot else (255, 0, 0)
         self.speed = 2
         self.is_bot = is_bot
         self.difficulty = difficulty
 
     def draw(self, screen):
-        pygame.draw.rect(screen, self.color, self.rect)
+        pygame.draw.rect(screen, (0, 0, 255) if not self.is_bot else (255, 0, 0), self.rect)
 
-    def bot_move(self, goal_cell, grid_cells, tile):
+    def move(self, dx, dy, grid, tile_size):
+        if not self.is_collision(dx, dy, grid, tile_size):
+            self.rect.x += dx
+            self.rect.y += dy
+
+    def is_collision(self, dx, dy, grid, tile_size):
+        new_rect = self.rect.move(dx, dy)
+        x, y = new_rect.topleft
+        col, row = x // tile_size, y // tile_size
+        if col < 0 or row < 0 or col >= len(grid) or row >= len(grid[0]):
+            return True
+        cell = grid[col][row]
+        if dx > 0 and cell.walls['right']:
+            return True
+        if dx < 0 and cell.walls['left']:
+            return True
+        if dy > 0 and cell.walls['bottom']:
+            return True
+        if dy < 0 and cell.walls['top']:
+            return True
+        return False
+
+    def bot_move(self, goal_cell, grid, tile_size):
         if self.difficulty == 'easy':
-            self.easy_bot_move(grid_cells, tile)
-            self.easy_bot_move(grid_cells, tile)
+            self.easy_bot_move(goal_cell, grid, tile_size)
         elif self.difficulty == 'medium':
-            self.medium_bot_move(goal_cell, grid_cells, tile)
-            self.medium_bot_move(goal_cell, grid_cells, tile)
+            self.medium_bot_move(goal_cell, grid, tile_size)
         elif self.difficulty == 'hard':
-            self.hard_bot_move(goal_cell, grid_cells, tile)
-            self.hard_bot_move(goal_cell, grid_cells, tile)
+            self.hard_bot_move(goal_cell, grid, tile_size)
 
-    def easy_bot_move(self, grid_cells, tile):
-        directions = [(self.speed, 0), (-self.speed, 0), (0, self.speed), (0, -self.speed)]
-        random.shuffle(directions)
-        
-        for dx, dy in directions:
-            new_x = self.rect.x + dx
-            new_y = self.rect.y + dy
-            
-            if self.can_move(new_x, new_y, grid_cells, tile):
-                self.rect.x = new_x
-                self.rect.y = new_y
-                break
+    def easy_bot_move(self, goal, grid, tile_size):
+        # Simple random movement for easy bot
+        move_options = [
+            (0, -self.speed),  # move up
+            (0, self.speed),   # move down
+            (-self.speed, 0),  # move left
+            (self.speed, 0)    # move right
+        ]
+        move = random.choice(move_options)
+        self.rect.move_ip(*move)
 
-    def medium_bot_move(self, goal_cell, grid_cells, tile):
-        directions = []
-        if self.rect.x < goal_cell.rect.x:
-            directions.append((self.speed, 0))
-        elif self.rect.x > goal_cell.rect.x:
-            directions.append((-self.speed, 0))
-        if self.rect.y < goal_cell.rect.y:
-            directions.append((0, self.speed))
-        elif self.rect.y > goal_cell.rect.y:
-            directions.append((0, -self.speed))
+    def medium_bot_move(self, goal, grid, tile_size):
+        # Implement basic pathfinding to move towards the goal
+        if self.rect.x < goal.x:
+            self.rect.x += self.speed
+        elif self.rect.x > goal.x:
+            self.rect.x -= self.speed
+        if self.rect.y < goal.y:
+            self.rect.y += self.speed
+        elif self.rect.y > goal.y:
+            self.rect.y -= self.speed
 
-        random.shuffle(directions)
-
-        for dx, dy in directions:
-            new_x = self.rect.x + dx
-            new_y = self.rect.y + dy
-
-            if self.can_move(new_x, new_y, grid_cells, tile):
-                self.rect.x = new_x
-                self.rect.y = new_y
-                break
-
+ 
     def hard_bot_move(self, goal_cell, grid_cells, tile):
         start = (self.rect.x // tile, self.rect.y // tile)
         end = (goal_cell.rect.x // tile, goal_cell.rect.y // tile)
@@ -126,3 +132,15 @@ class Player:
             return False
 
         return True
+
+    def get_neighbors(self, x, y, grid_cells):
+        neighbors = []
+        if x < len(grid_cells) - 1 and not grid_cells[x + 1][y].walls['left']:
+            neighbors.append(grid_cells[x + 1][y])
+        if x > 0 and not grid_cells[x - 1][y].walls['right']:
+            neighbors.append(grid_cells[x - 1][y])
+        if y < len(grid_cells[0]) - 1 and not grid_cells[x][y + 1].walls['top']:
+            neighbors.append(grid_cells[x][y + 1])
+        if y > 0 and not grid_cells[x][y - 1].walls['bottom']:
+            neighbors.append(grid_cells[x][y - 1])
+        return neighbors

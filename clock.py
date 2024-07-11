@@ -1,30 +1,26 @@
-import pygame, time
+# clock.py
 
-pygame.font.init()
+import pygame
+import time
 
 class Clock:
-	def __init__(self):
-		self.start_time = None
-		self.elapsed_time = 0
-		self.font = pygame.font.SysFont("monospace", 35)
-		self.message_color = pygame.Color("yellow")
+    def __init__(self, screen_width, screen_height):
+        self.start_time = time.time()
+        self.font = pygame.font.SysFont("impact", 30)
+        self.screen_width = screen_width
+        self.screen_height = screen_height
 
-	# Start the timer
-	def start_timer(self):
-		self.start_time = time.time()
+    def update(self):
+        self.elapsed_time = time.time() - self.start_time
 
-	# Update the timer
-	def update_timer(self):
-		if self.start_time is not None:
-			self.elapsed_time = time.time() - self.start_time
+    def draw(self, screen):
+        # Create a transparent white rectangle at the top of the screen
+        transparent_rect = pygame.Surface((self.screen_width, 50), pygame.SRCALPHA)
+        transparent_rect.fill((255, 255, 255, 128))
+        screen.blit(transparent_rect, (0, 0))
 
-	# Display the timer
-	def display_timer(self):
-		secs = int(self.elapsed_time % 60)
-		mins = int(self.elapsed_time / 60)
-		my_time = self.font.render(f"{mins:02}:{secs:02}", True, self.message_color)
-		return my_time
-
-	# Stop the timer
-	def stop_timer(self):
-		self.start_time = None
+        minutes, seconds = divmod(int(self.elapsed_time), 60)
+        time_display = f"{minutes:02}:{seconds:02}"
+        time_surface = self.font.render(time_display, True, (0, 0, 0))
+        time_rect = time_surface.get_rect(center=(self.screen_width // 2, 25))
+        screen.blit(time_surface, time_rect)
