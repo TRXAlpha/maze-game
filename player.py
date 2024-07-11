@@ -1,6 +1,7 @@
 import pygame
 import random
 
+
 class Player:
     def __init__(self, width, height, is_bot=False, difficulty='easy'):
         self.rect = pygame.Rect(0, 0, width, height)
@@ -15,9 +16,12 @@ class Player:
     def bot_move(self, goal_cell, grid_cells, tile):
         if self.difficulty == 'easy':
             self.easy_bot_move(grid_cells, tile)
+            self.easy_bot_move(grid_cells, tile)
         elif self.difficulty == 'medium':
             self.medium_bot_move(goal_cell, grid_cells, tile)
+            self.medium_bot_move(goal_cell, grid_cells, tile)
         elif self.difficulty == 'hard':
+            self.hard_bot_move(goal_cell, grid_cells, tile)
             self.hard_bot_move(goal_cell, grid_cells, tile)
 
     def easy_bot_move(self, grid_cells, tile):
