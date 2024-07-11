@@ -1,75 +1,95 @@
+# maze.py
+
 import pygame
 import random
+
 class Cell:
     def __init__(self, x, y, size):
         self.x = x
         self.y = y
         self.size = size
-        self.rect = pygame.Rect(x * size, y * size, size, size)
-        self.walls = [True, True, True, True]  # top, right, bottom, left
+        self.walls = {'top': True, 'right': True, 'bottom': True, 'left': True}
         self.visited = False
 
-    def draw(self, screen, tile):
-        if self.walls[0]:
-            pygame.draw.line(screen, (255, 255, 255), (self.x * tile, self.y * tile), ((self.x + 1) * tile, self.y * tile), 2)
-        if self.walls[1]:
-            pygame.draw.line(screen, (255, 255, 255), ((self.x + 1) * tile, self.y * tile), ((self.x + 1) * tile, (self.y + 1) * tile), 2)
-        if self.walls[2]:
-            pygame.draw.line(screen, (255, 255, 255), ((self.x + 1) * tile, (self.y + 1) * tile), (self.x * tile, (self.y + 1) * tile), 2)
-        if self.walls[3]:
-            pygame.draw.line(screen, (255, 255, 255), (self.x * tile, (self.y + 1) * tile), (self.x * tile, self.y * tile), 2)
+    def draw(self, screen):
+        x = self.x * self.size
+        y = self.y * self.size
+        if self.walls['top']:
+            pygame.draw.line(screen, (255, 255, 255), (x, y), (x + self.size, y), 2)
+        if self.walls['right']:
+            pygame.draw.line(screen, (255, 255, 255), (x + self.size, y), (x + self.size, y + self.size), 2)
+        if self.walls['bottom']:
+            pygame.draw.line(screen, (255, 255, 255), (x + self.size, y + self.size), (x, y + self.size), 2)
+        if self.walls['left']:
+            pygame.draw.line(screen, (255, 255, 255), (x, y + self.size), (x, y), 2)
+
+    def remove_wall(self, next_cell):
+        dx = self.x - next_cell.x
+        dy = self.y - next_cell.y
+        if dx == 1:
+            self.walls['left'] = False
+            next_cell.walls['right'] = False
+        elif dx == -1:
+            self.walls['right'] = False
+            next_cell.walls['left'] = False
+        if dy == 1:
+            self.walls['top'] = False
+            next_cell.walls['bottom'] = False
+        elif dy == -1:
+            self.walls['bottom'] = False
+            next_cell.walls['top'] = False
 
 class Maze:
-    def __init__(self, cols, rows, tile):
+    def __init__(self, cols, rows, size):
         self.cols = cols
         self.rows = rows
-        self.tile = tile
-        self.grid_cells = [[Cell(x, y, tile) for y in range(rows)] for x in range(cols)]
+        self.size = size
+        self.grid = [[Cell(col, row, size) for row in range(rows)] for col in range(cols)]
+        self.stack = []
+        self.current = self.grid[0][0]
+
+    def draw(self, screen):
+        for col in range(self.cols):
+            for row in range(self.rows):
+                self.grid[col][row].draw(screen)
 
     def generate_maze(self):
-        current_cell = self.grid_cells[0][0]
-        stack = [current_cell]
-        current_cell.visited = True
-
-        while stack:
-            neighbors = self.get_unvisited_neighbors(current_cell)
-            if neighbors:
-                next_cell = random.choice(neighbors)
-                self.remove_walls(current_cell, next_cell)
-                stack.append(current_cell)
-                current_cell = next_cell
-                current_cell.visited = True
+        self.current.visited = True
+        while True:
+            next_cell = self.get_next_cell(self.current)
+            if next_cell:
+                next_cell.visited = True
+                self.stack.append(self.current)
+                self.current.remove_wall(next_cell)
+                self.current = next_cell
+            elif self.stack:
+                self.current = self.stack.pop()
             else:
-                current_cell = stack.pop()
+                break
 
-    def get_unvisited_neighbors(self, cell):
+    def get_next_cell(self, cell):
         neighbors = []
-        directions = [
-            (0, -1),  # top
-            (1, 0),  # right
-            (0, 1),  # bottom
-            (-1, 0)  # left
-        ]
-        for direction in directions:
-            nx, ny = cell.x + direction[0], cell.y + direction[1]
-            if 0 <= nx < self.cols and 0 <= ny < self.rows:
-                neighbor = self.grid_cells[nx][ny]
-                if not neighbor.visited:
-                    neighbors.append(neighbor)
-        return neighbors
+        col, row = cell.x, cell.y
+        if col > 0 and not self.grid[col - 1][row].visited:
+            neighbors.append(self.grid[col - 1][row])
+        if col < self.cols - 1 and not self.grid[col + 1][row].visited:
+            neighbors.append(self.grid[col + 1][row])
+        if row > 0 and not self.grid[col][row - 1].visited:
+            neighbors.append(self.grid[col][row - 1])
+        if row < self.rows - 1 and not self.grid[col][row + 1].visited:
+            neighbors.append(self.grid[col][row + 1])
 
-    def remove_walls(self, current, next):
-        dx = current.x - next.x
-        dy = current.y - next.y
-        if dx == 1:  # next is to the left of current
-            current.walls[3] = False
-            next.walls[1] = False
-        elif dx == -1:  # next is to the right of current
-            current.walls[1] = False
-            next.walls[3] = False
-        if dy == 1:  # next is above current
-            current.walls[0] = False
-            next.walls[2] = False
-        elif dy == -1:  # next is below current
-            current.walls[2] = False
-            next.walls[0] = False
+        if neighbors:
+            return random.choice(neighbors)
+        else:
+            return None
+
+    def get_random_goal_cell(self):
+        while True:
+            col = random.randint(0, self.cols - 1)
+            row = random.randint(0, self.rows - 1)
+            if col != 0 or row != 0:  # ensure goal is not at the start position
+                return self.grid[col][row]
+
+    def get_start_position(self):
+        return self.grid[0][0].x * self.size, self.grid[0][0].y * self.size
